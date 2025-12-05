@@ -1,0 +1,77 @@
+version: '3.8'
+
+services:
+  # 1. The Web Server (Daphne/Django)
+  # Handles HTTP & WebSockets. Needs Port 8000.
+  web:
+    build: .
+    command: daphne -b 0.0.0.0 -p 8000 core.asgi:application
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    environment:
+      - DJANGO_SETTINGS_MODULE=core.settings
+      - DB_HOST=db
+      - DB_NAME=Note-Summarizer
+      - DB_USER=postgres
+      - DB_PASSWORD=supersecretpassword
+      - DB_PORT=5432
+      - REDIS_HOST=redis
+      - TESSERACT_PATH=/usr/bin/tesseract 
+      - SECRET_KEY=django-insecure-production-key-change-me
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+
+  # 2. The Background Worker (Celery)
+  # Handles AI tasks. NO PORTS needed.
+  worker:
+    build: .
+    command: celery -A core worker --loglevel=info
+    volumes:
+      - .:/app
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    environment:
+      # Worker needs the exact same env vars as Web to read DB/Redis
+      - DJANGO_SETTINGS_MODULE=core.settings
+      - DB_HOST=db
+      - DB_NAME=Note-Summarizer
+      - DB_USER=postgres
+      - DB_PASSWORD=supersecretpassword
+      - DB_PORT=5432
+      - REDIS_HOST=redis
+      - TESSERACT_PATH=/usr/bin/tesseract 
+      - SECRET_KEY=django-insecure-production-key-change-me
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+
+  # 3. The Database
+  db:
+    image: postgres:15
+    restart: always
+    environment:
+      - POSTGRES_DB=Note-Summarizer
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=supersecretpassword
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # 4. The Messenger
+  redis:
+    image: redis:7-alpine
+    restart: always
+
+volumes:
+  postgres_data:
