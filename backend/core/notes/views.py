@@ -1,3 +1,5 @@
+from email.mime import text
+
 from django.shortcuts import render
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -82,33 +84,41 @@ class NoteTranslateView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request, pk):
+        # 1. Get target language from query params (?to=hi)
         target_lang = request.GET.get("to", "en").strip()
 
         try:
+            # Good job filtering by request.user for security!
             note = Note.objects.get(id=pk, user=request.user)
         except Note.DoesNotExist:
-            return Response({"error": "Note not found"}, status=404)
+            return Response({"error": "Note not found or unauthorized"}, status=404)
         
         text = note.extracted_text
 
         if not text:
             return Response({"error": "No text available to translate"}, status=400)
-        
 
-        source_lang = detect_language(text)
-        translated = translate_text(text, target_lang)
-
-        if not translated:
-            translated = "(Translation failed or unstable API)"
+        # 2. Perform Detection and Translation
+        try:
+            source_lang = detect_language(text)
+            translated = translate_text(text, target_lang)
             
-        return Response({
-            "note_id": note.id,
-            "source_language": source_lang,
-            "target_lang": target_lang,
-            "original_text": text[:300] + "..." if len(text) > 300 else text,
-            "translate_text": translated
-        })
-    
+            if not translated:
+                return Response({"error": "Translation service returned empty result"}, status=502)
+
+            # 3. Return structured data
+            return Response({
+                "note_id": pk,
+                "source_language": source_lang,
+                "target_language": target_lang,
+                "original_text": text,
+                "translated_text": translated
+            })
+
+        except Exception as e:
+            # Log the error (e.g., API timeout or Credential issue)
+            print(f"Translation Error: {e}") 
+            return Response({"error": "Translation service is currently unavailable"}, status=503)
 class NoteExportTextView(APIView):
     permission_classes = [IsAuthenticated]
 
