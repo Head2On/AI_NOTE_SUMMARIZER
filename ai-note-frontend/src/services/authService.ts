@@ -8,6 +8,71 @@ import type {
   TokenResponse,
   UserProfile,
 } from "../types";
+import { 
+  getAuth, 
+  signInWithPopup, 
+  GoogleAuthProvider, 
+  RecaptchaVerifier, 
+  signInWithPhoneNumber,
+  ConfirmationResult 
+} from "firebase/auth";
+import { app } from "../services/firebaseConfig";
+
+interface CustomWindow extends Window {
+  recaptchaVerifier?: RecaptchaVerifier;
+}
+
+const auth = getAuth(app);
+const customWindow = typeof window !== "undefined" ? (window as unknown as CustomWindow) : null;
+
+// Helper to save tokens
+const saveTokens = (data: TokenResponse) => {
+  localStorage.setItem("access_token", data.access);
+  localStorage.setItem("refresh_token", data.refresh);
+};
+
+// --- Firebase -> Django Bridge ---
+const authenticateWithDjango = async (firebaseToken: string): Promise<TokenResponse> => {
+  const { data } = await apiClient.post<TokenResponse>("/api/auth/firebase/", {
+    token: firebaseToken,
+  });
+  localStorage.setItem("access_token", data.access);
+  localStorage.setItem("refresh_token", data.refresh);
+  return data;
+};
+
+export const loginWithGoogle = async (): Promise<TokenResponse> => {
+  const provider = new GoogleAuthProvider();
+  const result = await signInWithPopup(auth, provider);
+  const idToken = await result.user.getIdToken();
+  return await authenticateWithDjango(idToken);
+};
+
+// --- Phone OTP Flow ---
+export const setupRecaptcha = (containerId: string): void => {
+  if (customWindow && !customWindow.recaptchaVerifier) {
+    customWindow.recaptchaVerifier = new RecaptchaVerifier(auth, containerId, {
+      size: "invisible",
+    });
+  }
+};
+
+export const sendOtp = async (phoneNumber: string): Promise<ConfirmationResult> => {
+  if (!customWindow?.recaptchaVerifier) {
+    throw new Error("Recaptcha not initialized");
+  }
+  return await signInWithPhoneNumber(auth, phoneNumber, customWindow.recaptchaVerifier);
+};
+
+export const verifyOtpAndLogin = async (
+  confirmationResult: ConfirmationResult, 
+  otp: string
+): Promise<TokenResponse> => {
+  const result = await confirmationResult.confirm(otp);
+  const idToken = await result.user.getIdToken();
+  return await authenticateWithDjango(idToken);
+};
+
 
 // POST /api/auth/register/
 export const register = async (payload: RegisterPayload): Promise<void> => {
@@ -58,8 +123,7 @@ export const logout = async (): Promise<void> => {
 
 // POST /api/token/refresh/
 export const refreshToken = async (refresh: string): Promise<TokenResponse> => {
-  const { data } = await apiClient.post<TokenResponse>("/api/token/refresh/", {
-    refresh,
-  });
+  const { data } = await apiClient.post<TokenResponse>("/api/token/refresh/", { refresh });
+  saveTokens(data);
   return data;
 };

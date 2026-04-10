@@ -13,6 +13,7 @@ export default function NotaAI() {
   const [selectedNote, setSelectedNote] = useState<Note | null>(null);
   const [notes, setNotes] = useState<Note[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isNewNote, setIsNewNote] = useState(false);
 
   // ── Auth check + load notes on mount ──────────────────────────
   useEffect(() => {
@@ -23,10 +24,21 @@ export default function NotaAI() {
     }
     const fetchNotes = async () => {
       try {
-        const data = await getNotes();
-        setNotes(data);
+        const data = await getNotes() as Note[] | { results: Note[] };
+        
+        // 🚨 CRITICAL FIX: Handle Django Pagination here too! 🚨
+        let noteList: Note[] = [];
+        if (Array.isArray(data)) {
+          noteList = data;
+        } else if (data && Array.isArray(data.results)) {
+          noteList = data.results;
+        }
+
+        setNotes(noteList);
+        
         // Auto-select first note if exists
-        if (data.length > 0) setSelectedNote(data[0]);
+        if (noteList.length > 0) setSelectedNote(noteList[0]);
+        
       } catch (error: unknown) {
         const message = error instanceof Error ? error.message : "Unknown error";
         console.error("Failed to fetch notes:", message);
@@ -41,8 +53,15 @@ export default function NotaAI() {
 
 
   const handleNewNote = () => {
-  // just trigger the hidden file input
-  document.getElementById("note-file-input")?.click();
+  setIsNewNote(true);
+  setSelectedNote(null);
+};
+
+  const handleNoteCreated = (created: Note) => {
+  setNotes((prev) => Array.isArray(prev) ? [created, ...prev] : [created]);
+  setSelectedNote(created);
+  setIsNewNote(false);
+  router.push(`/notes/${created.id}`);
 };
 
   const handleFileSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -63,12 +82,12 @@ export default function NotaAI() {
 };
 
   const handleNoteDeleted = (id: string) => {
-    setNotes((prev) => prev.filter((n) => n.id !== id));
+    setNotes((prev) => Array.isArray(prev)? prev.filter((n) => n.id !== id): []);
     if (selectedNote?.id === id) setSelectedNote(null);
   };
 
   const handleNoteUpdated = (updated: Note) => {
-    setNotes((prev) => prev.map((n) => (n.id === updated.id ? updated : n)));
+    setNotes((prev) => Array.isArray(prev)? prev.map((n) => (n.id === updated.id ? updated : n)):[]);
     setSelectedNote(updated);
   };
 
@@ -88,6 +107,7 @@ export default function NotaAI() {
     );
   }
 
+//  main page 
   return (
   <div className="flex h-screen bg-gray-50 font-sans overflow-hidden">
     {/* Hidden file input */}
@@ -114,6 +134,8 @@ export default function NotaAI() {
       />
       <NoteEditor
         note={selectedNote}
+        isNewNote={isNewNote}
+        onNoteCreated={handleNoteCreated}
         onNoteDeleted={handleNoteDeleted}
         onNoteUpdated={handleNoteUpdated}
       />

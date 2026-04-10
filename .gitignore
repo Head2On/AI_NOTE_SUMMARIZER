@@ -79,6 +79,8 @@ ipython_config.py
 
 # celery beat
 celerybeat-schedule
+#firebase key file 
+firebase-service-account.json
 
 # SageMath parsed files
 *.sage.py
