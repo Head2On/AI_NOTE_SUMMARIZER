@@ -20,7 +20,8 @@ A Django-based backend for a note-taking application with AI-powered summarizati
 
 ### Authentication (`/api/auth/`)
 
-- `POST /api/auth/register/`: Register a new user.
+- `POST /api/auth/firebase/`: (New) Exchange Firebase ID tokens for Django JWT tokens
+- `POST /api/login/`: Obtain JWT token pair.
 - `GET /api/auth/profile/`: Get user profile information.
 - `POST /api/auth/change-password/`: Change user password.
 - `POST /api/auth/forgot-password/`: Request a password reset OTP.
@@ -32,9 +33,9 @@ A Django-based backend for a note-taking application with AI-powered summarizati
 ### Notes (`/api/notes/`)
 
 - `POST /api/notes/upload/`: Upload a new note.
-- `GET /api/notes/`: Get a list of all notes.
+- `GET /api/notes/`: List notes (supports pagination and ?sort=newest).
 - `GET /api/notes/<uuid:pk>/`: Get a single note by its ID.
-- `PUT /api/notes/<uuid:pk>/update/`: Update a note.
+- `PATCH /api/notes/<uuid:pk>/update/`: Update a note.
 - `DELETE /api/notes/<uuid:pk>/delete/`: Soft delete a note.
 - `GET /api/notes/trash/`: Get a list of soft-deleted notes.
 - `POST /api/notes/<uuid:pk>/restore/`: Restore a soft-deleted note.
@@ -56,15 +57,19 @@ A Django-based backend for a note-taking application with AI-powered summarizati
 
 ## Installation
 
-1.  **Clone the repository:**
+1. **Activate Environment & Install**
+
+    ```pip install -r  backend/main/requirements.txt```
+
+2.  **Clone the repository:**
     ```bash
     git clone <repository-url>
     ```
-2.  **Create a virtual environment:**
+3.  **Create a virtual environment:**
     ```bash
     python -m venv venv
     ```
-3.  **Activate the virtual environment:**
+4.  **Activate the virtual environment:**
     - On Windows:
       ```bash
       venv\Scripts\activate
@@ -73,11 +78,11 @@ A Django-based backend for a note-taking application with AI-powered summarizati
       ```bash
       source venv/bin/activate
       ```
-4.  **Install the dependencies:**
+5.  **Install the dependencies:**
     ```bash
-    pip install -r backend/core/requirements.txt
+    pip install -r backend/main/requirements.txt
     ```
-5.  **Create a `.env` file in `backend/core` and add the following environment variables:**
+6.  **Create a `.env` file in `backend/main` and add the following environment variables:**
     ```
     SECRET_KEY=<your-secret-key>
     DEBUG=True
@@ -89,16 +94,22 @@ A Django-based backend for a note-taking application with AI-powered summarizati
     EMAIL_HOST_USER=<your-email>
     EMAIL_HOST_PASSWORD=<your-email-password>
     GEMINI_API_KEY=<your-gemini-api-key>
-    ```
-6.  **Run the database migrations:**
+    ``` 
+7.  **Run the database migrations:**
+
     ```bash
-    python backend/core/manage.py migrate
+    python backend/main/manage.py migrate
     ```
+8. **Install dependencies**
+    `npm install`
 
 ## Running the Application
 
 1.  **Start the development server:**
     ```bash
-    python backend/core/manage.py runserver
+    python backend/main/manage.py runserver
     ```
 2.  The application will be available at `http://127.0.0.1:8000`.
+
+3. **Start frontend server**
+    `npm run dev`

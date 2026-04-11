@@ -79,7 +79,7 @@ export default function NotaAI() {
     const message = error instanceof Error ? error.message : "Unknown error";
     console.error("Failed to create note:", message);
   }
-};
+}; 
 
   const handleNoteDeleted = (id: string) => {
     setNotes((prev) => Array.isArray(prev)? prev.filter((n) => n.id !== id): []);
