@@ -1,4 +1,4 @@
-# AI Note Summerizer
+# AI Note Summarizer
 
 A Django-based backend for a note-taking application with AI-powered summarization and other features.
 
